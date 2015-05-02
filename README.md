@@ -1,2 +1,2 @@
 # lm
-Ttools for learning and testing language models
+Tools for learning and testing language models

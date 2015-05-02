@@ -12,7 +12,11 @@ def calculate_perplexity(model, ngrams, mgrams):
 	print len(ngrams), len(mgrams)
 	print ngrams[2], mgrams[2]
 
-	
+	#calculate log perplexity
+	#p = 1.0
+	#for i in xrange(len(ngrams)):
+	#	if ngrams[i] in model[model.n].ngrams:
+	#		assert mgrams[i] in model[model.n -1].ngrams
 	return 0
 
 def main():

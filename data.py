@@ -12,12 +12,15 @@ from nltk.util import ngrams
 from nltk.util import flatten
 
 Nmodel = namedtuple('Nmodel', ['num_ngrams', 'ngrams'])
-Ngram = namedtuple('Ngram', ['prob', 'words'])
 
 class LanguageModel(object):
-	def __init__(self, n, lines):
+
+	def __init__(self, n, lines = None):
 		self.models = dict()
-		
+		if lines == None:
+			self.n = n
+			return
+
 		lines = lines[1:] # /data/
 
 		# read total ngrams num:
@@ -27,7 +30,7 @@ class LanguageModel(object):
 			if lines[i] == '\n':
 				continue
 			a = lines[i].strip().split('=')
-			self.models[int(a[0][6])] = Nmodel(int(a[1]), [])
+			self.models[int(a[0][6])] = Nmodel(int(a[1]), {})
 			self.n = int(a[0][6])    		
 
 		lines = lines[i:]
@@ -36,15 +39,32 @@ class LanguageModel(object):
 			n = int(lines[0][1]) # \n-grams:
 			for k in xrange(self.models[n].num_ngrams):
 				a = lines[j+1].split('\t')
-				self.models[n].ngrams.append(Ngram(a[0], a[1].split()))
+				self.models[n].ngrams[a[0]] = a[1].split() #ngrams[words] = prob
 				
 			lines = lines[k:]
+
+	def set_model(self, n, model):
+		self.models[n] = model
+
+	def setn(self, n):
+		self.n = n
 
 	def __getitem__(self, item):
 		return self.models[item]
 
 	def __len__(self):
 		return len(self.models)
+
+	def dump(self, output_file):
+		with open(output_file, 'wb') as f:
+			f.write('\\data\\\n')
+			for n in self.models:
+				f.write('ngram %d=%d\n' % (n, self.models[n].num_ngrams))
+			f.write('\n')
+			for n in self.models:
+				f.write('\\%d-grams:\n' % n)	
+				for words in self.models[n].ngrams:			
+					f.write('%f\t%s\n' % (self.models[n].ngrams[words] ," ".join(words)))
 
 def load_test_file(n, lines):
 	n_grams = []
@@ -70,7 +90,7 @@ def calculate_prob_ls(n, n_grams, m_grams, gram, size, smoothing, lmbd):
 	assert m_grams[gram[:-1]] >= n_grams[gram]
 	return a
 
-def build_model(corpus_file, output_file, n, smoothing='ls', lmbd=1):
+def build_model(corpus_file, n, smoothing='ls', lmbd=1):
 	n_grams = dict()
 	m_grams = dict()
 	voc = []
@@ -96,18 +116,15 @@ def build_model(corpus_file, output_file, n, smoothing='ls', lmbd=1):
 				
 			progress.update(i)
 		progress.finish()
-		
 
-	with open(output_file, 'wb') as f:
-		size = len(set(voc))
-		f.write('\\data\\\n')
-		f.write('ngram %d=%d\n' % (n, size))
-		f.write('\\%d-grams:\n' % n)
-	
-		for gram in n_grams.keys():			
-			p = calculate_prob_ls(n, n_grams, m_grams, gram, size, smoothing, lmbd)
-			f.write('%f\t%s\n' % (p ," ".join(gram)))
+	size = len(set(voc))
+	lm = LanguageModel(n)
+	lm.set_model(n, Nmodel(len(n_grams.keys()), {}))
+	for gram in n_grams.keys():			
+		p = calculate_prob_ls(n, n_grams, m_grams, gram, size, smoothing, lmbd)
+		lm[n].ngrams[gram] = p
 
+	return lm
 
 def load_file(path, n = 2):
 	filename = os.path.split(path)[1]	

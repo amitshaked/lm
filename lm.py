@@ -17,10 +17,10 @@ def main():
 	parser.add_argument('-lmbd', '--lmbd', type=float, default=1.0, help='The lambda value for Lindstone\'s smoothing')
 	args = parser.parse_args()
 
-	data.build_model(args.input_file, args.output_file, args.ngram, args.smoothing, args.lmbd)
+	lm = data.build_model(args.input_file, args.ngram, args.smoothing, args.lmbd)
+	lm.dump(args.output_file)
 
 	return 0
 
-if __name__ == '__main__':
-   
+if __name__ == '__main__':   
     sys.exit(main())

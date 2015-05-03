@@ -17,6 +17,7 @@ class LanguageModel(object):
 
 	def __init__(self, n, lines = None):
 		self.models = dict()
+		self.voc = []
 		if lines == None:
 			self.n = n
 			return
@@ -37,17 +38,24 @@ class LanguageModel(object):
 		#read ngrams
 		for j in xrange(len(self.models)):
 			n = int(lines[0][1]) # \n-grams:
-			for k in xrange(self.models[n].num_ngrams):
-				a = lines[j+1].split('\t')
-				self.models[n].ngrams[a[0]] = a[1].split() #ngrams[words] = prob
+			for k in xrange(1 .. self.models[n].num_ngrams + 1):
+				a = lines[k].split('\t')
+				words = a[1].split()
+				self.voc.extend(words)
+				self.models[n].ngrams[tuple(words)] = int(a[0]) #ngrams[words] = prob
 				
 			lines = lines[k:]
+
+		self.voc = list(set(self.voc))
 
 	def set_model(self, n, model):
 		self.models[n] = model
 
 	def setn(self, n):
 		self.n = n
+
+	def set_voc(self, voc):
+		self.voc = voc
 
 	def __getitem__(self, item):
 		return self.models[item]

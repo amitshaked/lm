@@ -55,3 +55,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# n-grams
+*.1gram
+*.2gram
+*.3gram
+*.4gram

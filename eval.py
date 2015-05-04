@@ -6,17 +6,24 @@ import data
 from collections import namedtuple
 
 
+def calculate_prob_ls():
+	return 0
 
-def calculate_perplexity(model, ngrams, mgrams):
-	
-	print len(ngrams), len(mgrams)
-	print ngrams[2], mgrams[2]
-
+def calculate_perplexity(model, ngrams):
+	s, lmbd = model.get_smoothing()
 	#calculate log perplexity
-	#p = 1.0
-	#for i in xrange(len(ngrams)):
-	#	if ngrams[i] in model[model.n].ngrams:
-	#		assert mgrams[i] in model[model.n -1].ngrams
+	p = 1.0
+	for i in xrange(len(ngrams)):
+		if ngrams[i] in model[model.n]:
+			prob = ngrams[i] in model[model.n][ngrams[i]]
+		else:
+			prob = 0
+		if s == 'ls':
+			prob = calculate_prob_ls()
+		elif s == 'wb'
+			pass
+		else:
+			raise
 	return 0
 
 def main():
@@ -28,9 +35,9 @@ def main():
 
 	model = data.load_file(args.language_model)
 	print "model: %d" % model.n
-	ngrams, mgrams = data.load_file(args.input_file, model.n)
+	ngrams = data.load_file(args.input_file, model.n)
 
-	per = calculate_perplexity(model, ngrams, mgrams)
+	per = calculate_perplexity(model, ngrams)
 
 	return 0
 

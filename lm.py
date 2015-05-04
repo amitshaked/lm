@@ -17,7 +17,8 @@ def main():
 	parser.add_argument('-lmbd', '--lmbd', type=float, default=1.0, help='The lambda value for Lindstone\'s smoothing')
 	args = parser.parse_args()
 
-	lm = data.build_model(args.input_file, args.ngram, args.smoothing, args.lmbd)
+	lm = data.load_file(args.input_file, args.ngram)
+	lm.set_smoothing(args.smoothing, args.lmbd)
 	lm.dump(args.output_file)
 
 	return 0

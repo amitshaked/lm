@@ -7,9 +7,9 @@ from progressbar import ProgressBar
 from hashlib import sha1
 from math import log, exp
 import os
-import nltk
-from nltk.util import ngrams
-from nltk.util import flatten
+import sys
+
+LOGZERO = -sys.maxint - 1
 
 ALPHABET = [chr(ord('a') + i) for i in xrange(ord('z') - ord('a') + 1)] + [chr(ord('A') + i) for i in xrange(ord('Z') - ord('A') + 1)]
 
@@ -17,17 +17,19 @@ def tokenize(s):
     def is_word(x):
         return len(x) and x[0] in ALPHABET
     def convert(x):
-        return re.sub('[^a-zA-Z]', '', x)
+        return re.sub('[^a-zA-Z]', '', x).lower()
     return filter(is_word, map(convert, re.findall(r"[\w'.]+", s)))
 
 def add_log(x, y):
-    x = max(x,y)
-    y = min(x,y)
+    x,y = max(x,y), min(x,y)
+
+    if y <= LOGZERO:
+        return x
+
     negdiff = y-x
     return x + log(1 + exp(negdiff))
 
 class LanguageModel(object):
-
     def __init__(self, n, lines = None, voc = None, smoothing = None, lmbd = None):        
         self.smoothing = smoothing
         self.lmbd = lmbd
@@ -92,8 +94,13 @@ class LanguageModel(object):
     def get_smoothing(self):
         return self.smoothing, self.lmbd
 
-    def get_prob(self, n, words):
-        return self.models[n][tuple(words)]
+    def get_prob(self, words):
+        words = tuple(words)
+        d = self.models[len(words)]
+        if words not in d:
+            return -20  # FIXME: Return <UNK> prob
+        else:
+            return d[words]
 
     def __getitem__(self, item):
         return self.models[item]
@@ -156,16 +163,28 @@ class LanguageModel(object):
         lm.set_voc(voc)
         
         return lm
-        
+
+    def smooth(self):
+        if self.smoothing == 'ls':
+            self._smooth_ls()
+        elif self.smoothing == 'wb':
+            raise NotImplementedError('Witten-Bell smoothing')
+        elif self.smoothing == 'none':
+            pass
+        else:
+            raise ValueError('Invalid smoothing: %s' % self.smoothing)
+
+    def _smooth_ls(self):
+        pass
 
 def load_test_file(n, lines):
     n_grams = []
     for line in lines:
         try:
-            l = ['s'] + nltk.word_tokenize(line) + ['/s']
+            l = ['<s>'] + tokenize(line) + ['</s>']
         except:
             continue
-        n_grams.extend(list(ngrams(l, n)))
+        n_grams.extend((l[max(0, x-n+1):x+1] for x in xrange(len(l))))
     return n_grams
 
 
@@ -208,10 +227,9 @@ def build_model(n, lines):
     lm.set_voc(voc)
     
     for l in xrange(1, n+1):
-        for gram in grams[l]:
-            log_prob = log(grams[l][gram]) - log(grams[l-1][gram[:-1]])
+        for gram, gram_count in grams[l].iteritems():
+            log_prob = log(gram_count) - log(grams[l-1][gram[:-1]])
             lm.set_prob(l, gram, log_prob)
-        #normalize(lm[l])
 
     return lm
 

@@ -10,11 +10,12 @@ def calculate_perplexity(model, ngrams):
     lg_p = 0.0
 
     for ngram in ngrams:
+        cur = model.get_prob(ngram)
+        if cur <= data.LOGZERO:
+            raise Exception('Probability for %s is zero, can\'t calculate perplexity!' % ngram)
         lg_p += model.get_prob(ngram)
 
     # lg(1/pow(prob, 1/N)) = lg(1) - (1/N)*lg(prob) = -(1/N)*lg(prob)
-    if lg_p <= data.LOGZERO:
-        raise Exception('Probability is zero, can\'t calculate perplexity!')
     return exp(-(1./len(ngrams)) * lg_p)
 
 def main():

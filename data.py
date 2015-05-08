@@ -5,12 +5,13 @@ from collections import defaultdict, namedtuple
 from functools import partial
 from progressbar import ProgressBar
 from hashlib import sha1
-from math import log10 as log
+from math import log10
 import os
 import sys
 
 LOGZERO = -sys.maxint - 1
 exp = partial(pow, 10)
+log = lambda x: LOGZERO if x == 0 else log10(x)
 
 ALPHABET = [chr(ord('a') + i) for i in xrange(ord('z') - ord('a') + 1)] + [chr(ord('A') + i) for i in xrange(ord('Z') - ord('A') + 1)]
 
@@ -149,17 +150,17 @@ class LanguageModel(object):
 
     def train_model(self, lines, silent=False):
         if silent:
-            def log(s):
+            def info(s):
                 pass
         else:
-            def log(s):
+            def info(s):
                 print s
 
-        log('Tokenizing...')
+        info('Tokenizing...')
         lines_tokens = [['<s>'] + tokenize(l) + ['</s>'] for l in lines]
 
         # Build the lexicon as words that appear more than once, should be at least 99% of number of tokens
-        log('Building lexicon...')
+        info('Building lexicon...')
         lexicon = set()
         unk = set()
         counts = defaultdict(int)
@@ -184,14 +185,23 @@ class LanguageModel(object):
                 break
         del unk
 
-        log('Replacing OOV words with <UNK>...')
+        info('Replacing OOV words with <UNK>...')
         for l in lines_tokens:
             for i in xrange(len(l)):
                 if l[i][0] != '<' and l[i] not in lexicon:
                     l[i] = '<UNK>'
         del lexicon
 
-        log('Counting ngrams...')
+        info('Counting ngrams...')
+
+        # T(w) in Witten-Bell smoothing
+        # types_after[w] = set of all types that occur after w
+        types_after = defaultdict(set)
+
+        # N(w) in Witten-Bell smoothing
+        # num_tokens_after[w] = number of tokens that occur after w
+        num_tokens_after = defaultdict(int)
+
         m_grams = dict()
         tokens = 0
         grams = [defaultdict(int) for _ in xrange(self.n+1)]
@@ -205,16 +215,29 @@ class LanguageModel(object):
             for l in xrange(1, self.n+1):
                 for j in xrange (l, num_words+1):
                     a = tuple(words[j-l:j])
+
+                    # Account T(w) and N(w)
+                    if l > 1:
+                        prev = a[:-1]
+                        types_after[prev].add(a[-1])
+                        num_tokens_after[prev] += 1
+
                     grams[l][a] += 1
 
         grams[0] = dict()
         grams[0][tuple()] = tokens
         self.set_voc(voc)
 
-        log('Calculating probabilities...')
+        num_types_after = defaultdict(int, ((x, len(types_after[x])) for x in types_after))
+        num_types_after[tuple()] = self.voc_size
+        num_tokens_after[tuple()] = tokens
+
+        info('Calculating probabilities...')
         for l in xrange(1, self.n+1):
             for gram, gram_count in grams[l].iteritems():
-                log_prob = self._calculate_log_prob(l, grams, gram_count, grams[l-1][gram[:-1]])
+                prev = gram[:-1]
+                log_prob = self._calculate_log_prob(l, grams, gram_count, grams[l-1][prev],
+                        num_types_after[prev], num_tokens_after[prev])
                 self.set_prob(l, gram, log_prob)
 
         # Calculate probabilities for unseen ngrams (after smoothing they get a nonzero value...)
@@ -227,29 +250,30 @@ class LanguageModel(object):
             for base_gram, base_gram_count in grams[l-1].iteritems():
         #        gram_seen_count = seen_count[base_gram]
         #        gram_other_count = self.voc_size - gram_seen_count
-                log_prob = self._calculate_log_prob(l, grams, 0, base_gram_count)
+                log_prob = self._calculate_log_prob(l, grams, 0, base_gram_count, num_types_after[base_gram],
+                        num_tokens_after[base_gram])
                 self.set_prob(l, base_gram + ('<OTHER>',), log_prob)
 
         # Pr(W_n | W_{n-1}) when C(W_n)=0, C(W_{n-1})=0
-        self.prob_no_information = self._calculate_log_prob(2, grams, 0, 0)
+        self.prob_no_information = self._calculate_log_prob(2, grams, 0, 0, 0, 0)
 
         # Test
         #import random
-        #base_word = random.choice(grams[3].keys())[:2]
+        #l = self.n
+        #base_word = random.choice(grams[l].keys())[:-1]
         ##base_word = ('<s>', 'over')
         #print base_word
         #total = LOGZERO
         #c = 0
-        #for gram in grams[3]:
-        #    if gram[:2] == base_word:
+        #for gram in grams[l]:
+        #    if gram[:-1] == base_word:
         #        c += 1
         #        total = add_log(total, self.get_prob(gram))
         #        print gram, exp(self.get_prob(gram))
-        #if self.lmbd:
-        #    total = add_log(total, self.get_prob(base_word + ('<OTHER>',)) + log(self.voc_size - c))
+        #total = add_log(total, self.get_prob(base_word + ('<OTHER>',)) + log(self.voc_size - c))
         #print exp(total)
 
-    def _calculate_log_prob(self, l, grams, gram_count, prev_gram_count):
+    def _calculate_log_prob(self, l, grams, gram_count, prev_gram_count, num_types_after, num_tokens_after):
         # No need to smooth 1-grams obviously...
         if l == 1 or self.smoothing == 'none' or (self.smoothing == 'ls' and self.lmbd == 0):
             if prev_gram_count == 0:
@@ -262,7 +286,14 @@ class LanguageModel(object):
         elif self.smoothing == 'ls':
             log_prob = log(gram_count + self.lmbd) - log(prev_gram_count + self.lmbd * self.voc_size)
         elif self.smoothing == 'wb':
-            pass
+            z = self.voc_size - num_types_after
+            if gram_count == 0:
+                if num_types_after == 0:
+                    log_prob = LOGZERO
+                else:
+                    log_prob = log(num_types_after) - (log(z) + log(num_tokens_after + num_types_after))
+            else:
+                log_prob = log(gram_count) - log(num_tokens_after + num_types_after)
         else:
             raise Exception('Invalid smoothing %s' % self.smoothing)
 

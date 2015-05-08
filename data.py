@@ -250,7 +250,8 @@ class LanguageModel(object):
         #print exp(total)
 
     def _calculate_log_prob(self, l, grams, gram_count, prev_gram_count):
-        if self.smoothing == 'none' or (self.smoothing == 'ls' and self.lmbd == 0):
+        # No need to smooth 1-grams obviously...
+        if l == 1 or self.smoothing == 'none' or (self.smoothing == 'ls' and self.lmbd == 0):
             if prev_gram_count == 0:
                 # No prior information, assume uniform distribution
                 log_prob = -log(self.voc_size)

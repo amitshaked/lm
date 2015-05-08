@@ -9,19 +9,21 @@ def main():
     languages = ['en', 'es', 'ca']
     n_values = [2,3,4]
 
-    lang_lines = {lang: open(r'files\%s_text.corp' % lang, 'rb').readlines() for lang in languages}
+    lang_lines = {lang: open('files/%s_text.corp' % lang, 'rb').readlines() for lang in languages}
     test_lines = {}
     for lang in languages:
-        lines = open(r'files\%s.test' % lang, 'rb').readlines()
+        lines = open('files/%s.test' % lang, 'rb').readlines()
         for n in n_values:
             test_lines[(lang, n)] = data.load_test_file(n, lines)
 
+    outf = open('plot.txt','wb')
+
     for n in n_values:
-        print 'N: %d' % n
-        print '=================='
+        outf.write('N: %d\n' % n)
+        outf.write('==================\n')
         for lang in languages:
-            print 'Language: %s' % lang
-            print '=================='
+            outf.write('Language: %s\n' % lang)
+            outf.write('==================\n')
             perplexities_per_test_lang = defaultdict(list)
             for lmbd in lambda_values:
                 model = data.LanguageModel(n)
@@ -31,10 +33,13 @@ def main():
                     per = calculate_perplexity(model, test_lines[(test_lang, n)])
                     perplexities_per_test_lang[test_lang].append((lmbd, per))
             for test_lang in languages:
-                print 'Test language: %s' % test_lang
-                print '=================='
+                outf.write('Test language: %s\n' % test_lang)
+                outf.write('==================\n')
                 for lmbd, per in perplexities_per_test_lang[test_lang]:
-                    print '%.16f\t%.16f' % (lmbd, per)
+                    outf.write('%.8f\t%.16f\n' % (lmbd, per))
+            outf.flush()
+
+    outf.close()
 
     return 0
 

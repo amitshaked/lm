@@ -1,0 +1,141 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.12}
+\usepackage{enumerate}
+\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+
+\usepackage{sectsty} % Allows customizing section commands
+\allsectionsfont{\centering \normalfont\scshape} % Make all sections centered, the default font and small caps
+
+\usepackage{tkz-graph}
+%\usepackage{fancyhdr} % Custom headers and footers
+%\pagestyle{fancyplain} % Makes all pages in the document conform to the custom headers and footers
+%\fancyhead{} % No page header - if you want one, create it in the same way as the footers below
+%\fancyfoot[L]{} % Empty left footer
+%\fancyfoot[C]{} % Empty center footer
+%\fancyfoot[R]{\thepage} % Page numbering for right footer
+%\renewcommand{\headrulewidth}{0pt} % Remove header underlines
+%\renewcommand{\footrulewidth}{0pt} % Remove footer underlines
+%\setlength{\headheight}{13.6pt} % Customize the height of the header
+
+\numberwithin{equation}{section} % Number equations within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{figure}{section} % Number figures within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{table}{section} % Number tables within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+
+\newtheorem*{lemma}{Lemma}
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+%\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{	
+\normalfont \normalsize 
+%\horrule{2pt} \\[0.5cm]
+\huge Natural Language Processing - Assignment 1 \\ % The assignment title
+%\horrule{2pt} \\[0.5cm]
+}
+
+\author{
+Oran Avraham \texttt{(ID. 203539598)} \quad
+Amit Shaked \texttt{(ID. 203119417)}
+} % Your name
+
+\date{}
+
+\begin{document}
+
+\maketitle % Print the title
+
+\section{Perplexity vs. $\lambda$-values in Lidstone's smoothing}
+
+\subsection*{N=2}
+
+\input{lambda_two_gram}
+
+\newpage
+
+\subsection*{N=3}
+
+\input{lambda_three_gram}
+
+\newpage
+
+\subsection*{N=4}
+
+\input{lambda_four_gram}
+
+\subsection*{Conclusions}
+
+\begin{itemize}
+	\item Larger n-gram means larger perplexity values.
+	\item Larger $\lambda$-values might mean smaller perplexity values for very small $\lambda$-values, but for $\lambda \geq 0.01$
+		the perplexity increases as $\lambda$ increases (the graph is convex).
+	\item As $\lambda$ increases, the difference between condition positive (true language) perplexity and condition negative
+		(false language) perplexity decreases (this is more noticeable for two-grams and three-grams). This might be due to the fact
+		that larger $\lambda$-values means that the distribution is closer to uniform distribution.
+	\item In our case, $\lambda=10^{-3}$ seems to be the value for which the perplexity is minimal for the true test language. However,
+	the difference in the perplexity of the true language between $\lambda=10^{-4}$ and $\lambda=10^{-3}$ is negligible, while for false
+	languages there is a large difference. Hence, since our purpose is language detection, we chose $\lambda=10^{-4}$.
+\end{itemize}
+
+\newpage
+\section{Witten-Bell compared to Lidstone's smoothing}
+
+We chose $\lambda=10^{-4}$ for Lidstone's smoothing as explained in previous section.
+
+\subsection*{N=2}
+
+\input{ls_wb_two_gram}
+
+\newpage
+\subsection*{N=3}
+
+\input{ls_wb_three_gram}
+
+\newpage
+\subsection*{N=4}
+
+\input{ls_wb_four_gram}
+
+\subsection*{Conclusions}
+
+\begin{itemize}
+	\item Witten-Bell smoothing generally produces lower perplexity values than Lidstone's.
+	\item As $n$ increases, the increase in perplexity values in Lidstone's smoothing is much larger than in Witten-Bell smoothing.
+	\item For four-grams, Lidstone's smoothing showed large difference in perplexity values between Spanish and Catalan;
+		Witten-Bell, however, showed smaller difference. This may be due to the fact that we incorporated interpolation in Witten-Bell, thus
+		smaller n-grams probabilities are also considered.
+\end{itemize}
+
+\section{Language detection}
+
+In the previous section we've seen that Witten-Bell smoothing produces lower perplexity values than Lidstone's,
+thus it models the language better. We would like to find the language model which suits our needs the best.
+
+For two-grams, Spanish and Catalan seem to be too close to one another (when a Spanish corpus was tested against a Catalan model,
+there was a 15.42 difference in perplexity).
+
+The results for three-grams and four-grams seemed to be somewhat similar; however, three-grams had lower perplexity values for the real
+language. In addition, as we've seen, four-grams is prone to overfitting (it models the training corpus instead of the language). Therefore,
+we chose $n=3$ with Witten-Bell smoothing.
+
+We've detected correctly $95\%$ of the sentences: $94\%$ of the English sentences, $96.5\%$ of the Spanish sentences and $95\%$ of the Catalan sentences.
+
+Whenever we failed to identify a Spanish sentence, we identified it as Catalan. The opposite wasn't true (we did identify Catalan sentences as English).
+
+Besides the language model, another option to implement language detection is to use a lexicon - for each language, store a lexicon
+of known words in this language; process the test corpus and find which lexicon covers the maximum number of words in the test corpus.
+
+\end{document}

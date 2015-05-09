@@ -59,7 +59,7 @@ class LanguageModel(object):
         w = tuple(words)
         self.models[n][w] = log_prob
 
-    def set_smoothing(self, s, lmbd):
+    def set_smoothing(self, s, lmbd=1.0):
         self.smoothing = s
         if self.smoothing == 'ls':
             self.lmbd = lmbd
